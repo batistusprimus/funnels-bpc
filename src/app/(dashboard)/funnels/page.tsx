@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { FunnelsTable } from '@/components/dashboard/funnels-table';
 import { EmptyState, EmptyFunnelsIllustration } from '@/components/ui/empty-state';

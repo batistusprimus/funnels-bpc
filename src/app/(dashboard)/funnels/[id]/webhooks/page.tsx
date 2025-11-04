@@ -196,7 +196,23 @@ export default function WebhooksPage() {
       toast.error('Erreur lors du chargement des logs');
       console.error(error);
     } else {
-      setWebhookLogs((data || []) as WebhookLog[]);
+      const logs: WebhookLog[] = (data ?? []).map((log: any) => ({
+        id: log.id,
+        lead_id: log.lead_id,
+        webhook_url: log.webhook_url,
+        request_body: log.request_body,
+        response_status: log.response_status ?? null,
+        response_body: log.response_body ?? null,
+        duration_ms: log.duration_ms ?? null,
+        attempt_number: log.attempt_number,
+        max_attempts: log.max_attempts,
+        status: log.status,
+        error_message: log.error_message ?? null,
+        error_type: log.error_type ?? null,
+        created_at: log.created_at,
+      }));
+
+      setWebhookLogs(logs);
     }
   }
 

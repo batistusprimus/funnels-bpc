@@ -1,4 +1,4 @@
-import type { Lead, RoutingRule, RoutingCondition } from '@/types';
+import type { Lead, RoutingRule, RoutingCondition, Funnel } from '@/types';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
 // Évaluer une condition
@@ -76,15 +76,48 @@ export async function routeLead(leadId: string): Promise<{ success: boolean; cli
   const supabase = await createServerClient();
 
   // 1. Récupérer le lead avec le funnel
-  const { data: lead, error: leadError } = await supabase
+  const { data: leadRow, error: leadError } = await supabase
     .from('leads')
-    .select('*, funnels(*)')
+    .select('*')
     .eq('id', leadId)
     .single();
 
-  if (leadError || !lead) {
+  if (leadError || !leadRow) {
     return { success: false, error: 'Lead not found' };
   }
+
+  let funnelInfo: Pick<Funnel, 'id' | 'name' | 'slug'> | undefined;
+
+  if (leadRow.funnel_id) {
+    const { data: funnelRow, error: funnelError } = await supabase
+      .from('funnels')
+      .select('id, name, slug')
+      .eq('id', leadRow.funnel_id)
+      .single();
+
+    if (!funnelError && funnelRow) {
+      funnelInfo = {
+        id: funnelRow.id,
+        name: funnelRow.name,
+        slug: funnelRow.slug,
+      };
+    }
+  }
+
+  const lead: Lead = {
+    id: leadRow.id,
+    funnel_id: leadRow.funnel_id,
+    variant: leadRow.variant,
+    data: leadRow.data ?? {},
+    utm_params: leadRow.utm_params ?? {},
+    sent_to: leadRow.sent_to ?? null,
+    sent_to_client: leadRow.sent_to_client ?? null,
+    status: leadRow.status,
+    error_message: leadRow.error_message ?? null,
+    sent_at: leadRow.sent_at ?? null,
+    created_at: leadRow.created_at,
+    funnels: funnelInfo,
+  };
 
   // 2. Récupérer les règles de routage (triées par priorité)
   const { data: rules, error: rulesError } = await supabase
@@ -99,7 +132,18 @@ export async function routeLead(leadId: string): Promise<{ success: boolean; cli
   }
 
   // 3. Si aucune règle, retourner une erreur
-  if (!rules || rules.length === 0) {
+  const typedRules: RoutingRule[] = (rules ?? []).map((rule: any) => ({
+    id: rule.id,
+    funnel_id: rule.funnel_id,
+    priority: rule.priority,
+    condition: rule.condition as RoutingCondition,
+    webhook_url: rule.webhook_url,
+    client_name: rule.client_name,
+    is_active: rule.is_active,
+    created_at: rule.created_at,
+  }));
+
+  if (typedRules.length === 0) {
     await supabase
       .from('leads')
       .update({
@@ -112,10 +156,10 @@ export async function routeLead(leadId: string): Promise<{ success: boolean; cli
   }
 
   // 4. Évaluer chaque règle dans l'ordre de priorité
-  for (const rule of rules) {
-    if (evaluateCondition(rule.condition as RoutingCondition, lead.data)) {
+  for (const rule of typedRules) {
+    if (evaluateCondition(rule.condition, lead.data)) {
       // Match ! Envoyer au webhook
-      const result = await sendToWebhook(rule.webhook_url, lead as Lead);
+      const result = await sendToWebhook(rule.webhook_url, lead);
 
       if (result.success) {
         // Mise à jour du lead avec succès

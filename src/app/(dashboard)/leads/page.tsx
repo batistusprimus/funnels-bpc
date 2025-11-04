@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LeadsTable } from '@/components/dashboard/leads-table';
 import { EmptyState, EmptyLeadsIllustration } from '@/components/ui/empty-state';
-import type { Lead } from '@/types';
+import type { Lead, Funnel } from '@/types';
 import { TrendingUp, TrendingDown, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ async function getLeads(): Promise<Lead[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leads')
-    .select('*, funnels(name, slug)')
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -19,7 +19,48 @@ async function getLeads(): Promise<Lead[]> {
     return [];
   }
 
-  return data as Lead[];
+  const leadsData = data ?? [];
+  const funnelIds = Array.from(new Set(leadsData.map((lead) => lead.funnel_id).filter(Boolean))) as string[];
+
+  const funnelMap = new Map<string, Pick<Funnel, 'id' | 'name' | 'slug'>>();
+
+  if (funnelIds.length > 0) {
+    const { data: funnelsData, error: funnelsError } = await supabase
+      .from('funnels')
+      .select('id, name, slug')
+      .in('id', funnelIds);
+
+    if (funnelsError) {
+      console.error('Error fetching funnels for leads:', funnelsError);
+    }
+
+    (funnelsData ?? []).forEach((funnel: any) => {
+      if (funnel?.id) {
+        funnelMap.set(funnel.id, {
+          id: funnel.id,
+          name: funnel.name,
+          slug: funnel.slug,
+        });
+      }
+    });
+  }
+
+  const typedLeads: Lead[] = leadsData.map((lead: any) => ({
+    id: lead.id,
+    funnel_id: lead.funnel_id,
+    variant: lead.variant,
+    data: lead.data ?? {},
+    utm_params: lead.utm_params ?? {},
+    sent_to: lead.sent_to ?? null,
+    sent_to_client: lead.sent_to_client ?? null,
+    status: lead.status,
+    error_message: lead.error_message ?? null,
+    sent_at: lead.sent_at ?? null,
+    created_at: lead.created_at,
+    funnels: lead.funnel_id ? funnelMap.get(lead.funnel_id) : undefined,
+  }));
+
+  return typedLeads;
 }
 
 export default async function LeadsPage() {

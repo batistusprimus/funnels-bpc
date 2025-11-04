@@ -107,7 +107,7 @@ export interface Lead {
   error_message: string | null;
   sent_at: string | null;
   created_at: string;
-  funnels?: Funnel;
+  funnels?: Pick<Funnel, 'id' | 'name' | 'slug'>;
 }
 
 export interface RoutingCondition {

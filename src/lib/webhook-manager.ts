@@ -246,8 +246,33 @@ export class WebhookManager {
       return;
     }
 
+    const queueItems = queue.map((item: any) => ({
+      id: item.id,
+      lead_id: item.lead_id,
+      routing_rule_id: item.routing_rule_id,
+      webhook_log_id: item.webhook_log_id,
+      status: item.status,
+      priority: item.priority,
+      attempt_number: item.attempt_number,
+      max_attempts: item.max_attempts,
+      scheduled_at: item.scheduled_at,
+      leads: item.leads
+        ? {
+            id: item.leads.id,
+            data: item.leads.data,
+            funnel_id: item.leads.funnel_id,
+          }
+        : null,
+      routing_rules: item.routing_rules
+        ? {
+            id: item.routing_rules.id,
+            webhook_url: item.routing_rules.webhook_url,
+          }
+        : null,
+    }));
+
     // Traiter chaque webhook
-    for (const item of queue) {
+    for (const item of queueItems) {
       // Marquer comme en cours
       await this.supabase
         .from('webhook_queue')
@@ -255,6 +280,10 @@ export class WebhookManager {
         .eq('id', item.id);
 
       try {
+        if (!item.routing_rules?.webhook_url || !item.leads?.data) {
+          throw new Error('Missing routing rule or lead data for webhook replay');
+        }
+
         // Envoyer le webhook
         await this.sendWebhook({
           lead_id: item.lead_id,
