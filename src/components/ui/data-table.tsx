@@ -155,14 +155,14 @@ export function DataTable<T extends Record<string, any>>({
               <div key={col.key} className="min-w-[200px]">
                 {col.filterType === 'select' && col.filterOptions ? (
                   <Select
-                    value={filters[col.key] || ''}
-                    onValueChange={(value) => handleFilter(col.key, value)}
+                    value={filters[col.key] || '__all__'}
+                    onValueChange={(value) => handleFilter(col.key, value === '__all__' ? '' : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={`Filtrer ${col.label}`} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="__all__">Tous</SelectItem>
                       {col.filterOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
