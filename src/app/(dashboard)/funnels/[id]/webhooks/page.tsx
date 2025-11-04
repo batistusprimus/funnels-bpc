@@ -196,7 +196,7 @@ export default function WebhooksPage() {
       toast.error('Erreur lors du chargement des logs');
       console.error(error);
     } else {
-      setWebhookLogs(data || []);
+      setWebhookLogs((data || []) as WebhookLog[]);
     }
   }
 
