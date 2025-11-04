@@ -13,9 +13,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_
 // GET /api/v1/leads/:id
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const resolvedParams = await params;
   // Authentification
   const authResult = await authenticateApiRequest(request);
   if (!authResult.success) {
