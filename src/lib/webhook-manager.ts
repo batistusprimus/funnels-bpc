@@ -383,7 +383,7 @@ export class WebhookManager {
     routing_rule_id: string,
     overrides?: Partial<WebhookConfig>
   ): Promise<WebhookConfig> {
-    const { data, error } = await this.supabase
+    let { data, error } = await this.supabase
       .from('webhook_configs')
       .select('*')
       .eq('routing_rule_id', routing_rule_id)
