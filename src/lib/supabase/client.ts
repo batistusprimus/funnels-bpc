@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import type { Database } from '@/types/supabase';
 
 export function createClient() {
   // Validation des variables d'environnement
@@ -10,7 +11,7 @@ export function createClient() {
     throw new Error('Supabase non configuré. Consultez le README pour les instructions.');
   }
 
-  return createBrowserClient(url, anonKey, {
+  return createBrowserClient<Database>(url, anonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,

@@ -3,7 +3,8 @@
  * Fonctionnalités: retry logic, logs détaillés, custom headers, replay manuel
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 // Types
 export interface WebhookConfig {
@@ -59,10 +60,10 @@ export interface WebhookStats {
 
 // Classe principale du gestionnaire de webhooks
 export class WebhookManager {
-  private supabase: ReturnType<typeof createClient>;
+  private supabase: SupabaseClient<Database>;
   
   constructor(supabaseUrl: string, supabaseKey: string) {
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient<Database>(supabaseUrl, supabaseKey);
   }
 
   /**

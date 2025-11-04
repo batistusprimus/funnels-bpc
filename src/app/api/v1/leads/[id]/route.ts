@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateApiRequest, rateLimitApiRequest, hasScope } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -45,7 +46,7 @@ export async function GET(
     );
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
   const { data, error } = await supabase
     .from('leads')
     .select(`

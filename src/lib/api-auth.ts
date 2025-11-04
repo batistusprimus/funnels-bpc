@@ -3,6 +3,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import crypto from 'crypto';
 
 export interface ApiKey {
@@ -46,7 +47,7 @@ export async function verifyApiKey(
   }
 
   const hash = crypto.createHash('sha256').update(apiKey).digest('hex');
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase
     .from('api_keys')
@@ -91,7 +92,7 @@ export async function checkRateLimit(
   supabaseUrl: string,
   supabaseKey: string
 ): Promise<{ allowed: boolean; remaining: number; reset_at: Date }> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
   const now = new Date();
 
   // Vérifier rate limit par minute
@@ -242,7 +243,7 @@ export async function createApiKey(
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase
     .from('api_keys')
