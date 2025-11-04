@@ -2,15 +2,18 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { statusStyles, formatDate } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { FunnelsTable } from '@/components/dashboard/funnels-table';
+import { EmptyState, EmptyFunnelsIllustration } from '@/components/ui/empty-state';
 import type { Funnel } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-async function getFunnels(): Promise<Funnel[]> {
+async function getFunnelsWithStats() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  
+  // Récupérer les funnels
+  const { data: funnels, error } = await supabase
     .from('funnels')
     .select('*')
     .order('created_at', { ascending: false });
@@ -20,24 +23,26 @@ async function getFunnels(): Promise<Funnel[]> {
     return [];
   }
 
-  return data as Funnel[];
-}
+  // Récupérer les stats de leads pour chaque funnel
+  const funnelsWithStats = await Promise.all(
+    (funnels || []).map(async (funnel) => {
+      const { count } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('funnel_id', funnel.id);
 
-async function getFunnelStats(funnelId: string) {
-  const supabase = await createClient();
-  
-  const { count } = await supabase
-    .from('leads')
-    .select('*', { count: 'exact', head: true })
-    .eq('funnel_id', funnelId);
+      return {
+        ...funnel,
+        leadsCount: count || 0,
+      };
+    })
+  );
 
-  return {
-    leads: count || 0,
-  };
+  return funnelsWithStats;
 }
 
 export default async function FunnelsPage() {
-  const funnels = await getFunnels();
+  const funnels = await getFunnelsWithStats();
 
   return (
     <div className="container py-8">
@@ -53,73 +58,22 @@ export default async function FunnelsPage() {
         </Button>
       </div>
 
-      {funnels.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <p className="text-lg text-muted-foreground mb-4">
-              Vous n'avez pas encore de funnel
-            </p>
-            <Button asChild>
-              <Link href="/funnels/new">Créer votre premier funnel</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {funnels.map((funnel) => (
-            <FunnelCard key={funnel.id} funnel={funnel} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-async function FunnelCard({ funnel }: { funnel: Funnel }) {
-  const stats = await getFunnelStats(funnel.id);
-
-  return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle>{funnel.name}</CardTitle>
-            <CardDescription className="font-mono text-xs">
-              /{funnel.slug}
-            </CardDescription>
-          </div>
-          <Badge className={statusStyles[funnel.status]}>
-            {funnel.status === 'draft' && 'Brouillon'}
-            {funnel.status === 'active' && 'Actif'}
-            {funnel.status === 'archived' && 'Archivé'}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1">
-        {funnel.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {funnel.description}
-          </p>
+      <Card className="overflow-hidden">
+        {funnels.length === 0 ? (
+          <EmptyState
+            icon={<EmptyFunnelsIllustration />}
+            title="Aucun funnel pour le moment"
+            description="Créez votre premier tunnel de conversion pour commencer à collecter des leads"
+            action={{
+              label: 'Créer un funnel',
+              href: '/funnels/new',
+            }}
+          />
+        ) : (
+          <FunnelsTable funnels={funnels} />
         )}
-        <div className="mt-4 flex items-center gap-4 text-sm">
-          <div>
-            <span className="font-semibold">{stats.leads}</span>
-            <span className="text-muted-foreground"> leads</span>
-          </div>
-          <div className="text-muted-foreground text-xs">
-            {formatDate(funnel.created_at)}
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="gap-2">
-        <Button asChild variant="outline" className="flex-1">
-          <Link href={`/funnels/${funnel.id}`}>Voir</Link>
-        </Button>
-        <Button asChild className="flex-1">
-          <Link href={`/funnels/${funnel.id}/builder`}>Éditer</Link>
-        </Button>
-      </CardFooter>
-    </Card>
+      </Card>
+    </div>
   );
 }
 

@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDateTime, formatNumber, formatPercent, statusStyles } from '@/lib/utils';
+import { AnalyticsCharts } from '@/components/dashboard/analytics-charts';
+import { EmptyState, EmptyLeadsIllustration } from '@/components/ui/empty-state';
 import type { Funnel, Lead } from '@/types';
 
 interface AnalyticsPageProps {
@@ -105,6 +107,11 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </Button>
       </div>
 
+      {/* Charts interactifs */}
+      <div className="mb-6">
+        <AnalyticsCharts leads={leads} />
+      </div>
+
       {/* Métriques clés */}
       <div className="mb-6 grid gap-6 md:grid-cols-4">
         <Card>
@@ -159,8 +166,14 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
             <CardTitle>Performance par variante</CardTitle>
           </CardHeader>
           <CardContent>
-            {variantStats.length === 0 ? (
-              <p className="text-muted-foreground">Aucune donnée</p>
+            {totalLeads === 0 ? (
+              <div className="py-8">
+                <EmptyState
+                  icon={<EmptyLeadsIllustration />}
+                  title="Aucune donnée"
+                  description="Commencez à collecter des leads pour voir les statistiques"
+                />
+              </div>
             ) : (
               <Table>
                 <TableHeader>
@@ -195,7 +208,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           </CardHeader>
           <CardContent>
             {clientStatsArray.length === 0 ? (
-              <p className="text-muted-foreground">Aucune donnée</p>
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">Aucun lead routé pour le moment</p>
+              </div>
             ) : (
               <Table>
                 <TableHeader>
@@ -227,7 +242,13 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </CardHeader>
         <CardContent>
           {recentLeads.length === 0 ? (
-            <p className="text-muted-foreground">Aucun lead</p>
+            <div className="py-8">
+              <EmptyState
+                icon={<EmptyLeadsIllustration />}
+                title="Aucun lead"
+                description="Les leads collectés apparaîtront ici"
+              />
+            </div>
           ) : (
             <Table>
               <TableHeader>

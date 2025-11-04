@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Application BPC Funnels
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bpc-network
+
+  # Supabase Local (optionnel - pour développement sans compte Supabase)
+  # Décommentez si vous voulez utiliser Supabase en local
+  # supabase:
+  #   image: supabase/supabase:latest
+  #   ports:
+  #     - "54321:54321" # API
+  #     - "54323:54323" # Auth
+  #   environment:
+  #     - POSTGRES_PASSWORD=your-super-secret-password
+  #   volumes:
+  #     - supabase-data:/var/lib/postgresql/data
+  #   networks:
+  #     - bpc-network
+
+networks:
+  bpc-network:
+    driver: bridge
+
+# volumes:
+#   supabase-data:
+

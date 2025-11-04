@@ -6,11 +6,16 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   {
     title: 'Funnels',
     href: '/funnels',
+  },
+  {
+    title: 'Templates',
+    href: '/templates',
   },
   {
     title: 'Leads',
@@ -60,7 +65,8 @@ export function DashboardNav() {
             ))}
           </nav>
         </div>
-        <div className="ml-auto flex items-center space-x-4">
+        <div className="ml-auto flex items-center space-x-2">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             Déconnexion
           </Button>

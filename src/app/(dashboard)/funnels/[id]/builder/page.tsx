@@ -16,10 +16,30 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import type { Funnel, VariantConfig, StepConfig, FieldConfig } from '@/types';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Monitor, Tablet, Smartphone } from 'lucide-react';
 
 interface BuilderPageProps {
   params: Promise<{ id: string }>;
 }
+
+type DeviceType = 'desktop' | 'tablet' | 'mobile';
 
 export default function BuilderPage({ params }: BuilderPageProps) {
   const resolvedParams = use(params);
@@ -30,6 +50,15 @@ export default function BuilderPage({ params }: BuilderPageProps) {
   const [editingField, setEditingField] = useState<{ stepId: string; fieldIndex: number } | null>(null);
   const [previewMode, setPreviewMode] = useState<'landing' | 'form'>('landing');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [devicePreview, setDevicePreview] = useState<DeviceType>('desktop');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   const router = useRouter();
   const supabase = createClient();
@@ -200,6 +229,37 @@ export default function BuilderPage({ params }: BuilderPageProps) {
     updateVariant({ steps });
   };
 
+  const handleStepDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const variant = funnel!.config.variants[selectedVariantIndex];
+      const oldIndex = variant.steps.findIndex((step) => step.id === active.id);
+      const newIndex = variant.steps.findIndex((step) => step.id === over.id);
+
+      const newSteps = arrayMove(variant.steps, oldIndex, newIndex);
+      updateVariant({ steps: newSteps });
+    }
+  };
+
+  const handleFieldDragEnd = (stepId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const variant = funnel!.config.variants[selectedVariantIndex];
+      const steps = variant.steps.map((step) => {
+        if (step.id === stepId) {
+          const oldIndex = step.fields.findIndex((_, i) => `field-${i}` === active.id);
+          const newIndex = step.fields.findIndex((_, i) => `field-${i}` === over.id);
+          const newFields = arrayMove(step.fields, oldIndex, newIndex);
+          return { ...step, fields: newFields };
+        }
+        return step;
+      });
+      updateVariant({ steps });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-3.5rem)]">
@@ -221,21 +281,32 @@ export default function BuilderPage({ params }: BuilderPageProps) {
 
   const variant = funnel.config.variants[selectedVariantIndex];
 
+  const deviceWidths = {
+    desktop: 'max-w-4xl',
+    tablet: 'max-w-2xl',
+    mobile: 'max-w-sm',
+  };
+
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-3.5rem)]">
       {/* Left Panel - Editor */}
-      <div className="w-1/2 overflow-y-auto border-r p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">{funnel.name}</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push(`/funnels/${funnel.id}`)}>
-              Retour
-            </Button>
-            <Button onClick={saveFunnel} disabled={saving}>
-              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-            </Button>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden lg:flex'} lg:w-1/2 w-full overflow-y-auto border-r p-4 lg:p-6`}>
+        <div className="w-full">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-xl lg:text-2xl font-bold">{funnel.name}</h1>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push(`/funnels/${funnel.id}`)}
+              >
+                Retour
+              </Button>
+              <Button size="sm" onClick={() => saveFunnel()} disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </Button>
+            </div>
           </div>
-        </div>
 
         <Tabs defaultValue="landing">
           <TabsList className="mb-4">
@@ -304,92 +375,31 @@ export default function BuilderPage({ params }: BuilderPageProps) {
           </TabsContent>
 
           <TabsContent value="form" className="space-y-4">
-            {variant.steps.map((step, stepIndex) => (
-              <Card key={step.id} className="p-4">
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    <Input
-                      value={step.title}
-                      onChange={(e) => updateStep(step.id, { title: e.target.value })}
-                      className="font-semibold"
-                    />
-                    <Input
-                      value={step.subtitle || ''}
-                      onChange={(e) => updateStep(step.id, { subtitle: e.target.value })}
-                      placeholder="Sous-titre (optionnel)"
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteStep(step.id)}
-                  >
-                    🗑️
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Champs</Label>
-                  {step.fields.map((field, fieldIndex) => (
-                    <div
-                      key={fieldIndex}
-                      className="flex items-center gap-2 rounded border p-2"
-                    >
-                      <span className="flex-1 text-sm">
-                        {field.label} ({field.type})
-                        {field.required && <Badge variant="secondary" className="ml-2">Requis</Badge>}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingField({ stepId: step.id, fieldIndex })}
-                      >
-                        ✏️
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteField(step.id, fieldIndex)}
-                      >
-                        🗑️
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addField(step.id)}
-                    className="w-full"
-                  >
-                    + Ajouter un champ
-                  </Button>
-                </div>
-
-                <div className="mt-4">
-                  <Label>Étape suivante</Label>
-                  <Select
-                    value={step.nextStep || 'null'}
-                    onValueChange={(value) =>
-                      updateStep(step.id, { nextStep: value === 'null' ? null : value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="null">Fin du formulaire</SelectItem>
-                      {variant.steps
-                        .filter((s) => s.id !== step.id)
-                        .map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.title}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Card>
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleStepDragEnd}
+            >
+              <SortableContext
+                items={variant.steps.map((step) => step.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {variant.steps.map((step) => (
+                  <SortableStepCard
+                    key={step.id}
+                    step={step}
+                    variant={variant}
+                    onUpdateStep={updateStep}
+                    onDeleteStep={deleteStep}
+                    onAddField={addField}
+                    onEditField={setEditingField}
+                    onDeleteField={deleteField}
+                    onFieldDragEnd={handleFieldDragEnd}
+                    sensors={sensors}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             <Button onClick={addStep} className="w-full">
               + Ajouter une étape
@@ -448,21 +458,65 @@ export default function BuilderPage({ params }: BuilderPageProps) {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
+      </div>
+
+      {/* Mobile Toggle Button */}
+      <div className="lg:hidden fixed bottom-4 right-4 z-50">
+        <Button
+          size="lg"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="rounded-full shadow-lg"
+        >
+          {mobileMenuOpen ? '👁️ Preview' : '✏️ Éditer'}
+        </Button>
       </div>
 
       {/* Right Panel - Preview */}
-      <div className="w-1/2 overflow-y-auto bg-gray-50 p-6">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Prévisualisation</h2>
-            <Badge>Variante {variant.key.toUpperCase()}</Badge>
+      <div className={`${!mobileMenuOpen ? 'flex' : 'hidden lg:flex'} lg:w-1/2 w-full overflow-y-auto bg-gray-50 p-4 lg:p-6`}>
+        <div className="w-full">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">Prévisualisation</h2>
+              <Badge>Variante {variant.key.toUpperCase()}</Badge>
+            </div>
+            
+            {/* Device Switcher */}
+            <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
+              <Button
+                variant={devicePreview === 'desktop' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDevicePreview('desktop')}
+                className="h-8 px-2"
+              >
+                <Monitor className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={devicePreview === 'tablet' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDevicePreview('tablet')}
+                className="h-8 px-2"
+              >
+                <Tablet className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={devicePreview === 'mobile' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDevicePreview('mobile')}
+                className="h-8 px-2"
+              >
+                <Smartphone className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           
-          {previewMode === 'landing' ? (
-            <PreviewLanding variant={variant} />
-          ) : (
-            <PreviewForm variant={variant} />
-          )}
+          <div className={`mx-auto transition-all duration-300 ${deviceWidths[devicePreview]}`}>
+            {previewMode === 'landing' ? (
+              <PreviewLanding variant={variant} />
+            ) : (
+              <PreviewForm variant={variant} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -714,6 +768,195 @@ function FieldEditorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Composant pour un Step draggable
+function SortableStepCard({
+  step,
+  variant,
+  onUpdateStep,
+  onDeleteStep,
+  onAddField,
+  onEditField,
+  onDeleteField,
+  onFieldDragEnd,
+  sensors,
+}: {
+  step: StepConfig;
+  variant: VariantConfig;
+  onUpdateStep: (stepId: string, updates: Partial<StepConfig>) => void;
+  onDeleteStep: (stepId: string) => void;
+  onAddField: (stepId: string) => void;
+  onEditField: (params: { stepId: string; fieldIndex: number }) => void;
+  onDeleteField: (stepId: string, fieldIndex: number) => void;
+  onFieldDragEnd: (stepId: string, event: DragEndEvent) => void;
+  sensors: any;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style} className="p-4">
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <button
+          className="cursor-grab active:cursor-grabbing mt-2 p-1 hover:bg-gray-100 rounded"
+          {...attributes}
+          {...listeners}
+        >
+          ⋮⋮
+        </button>
+        <div className="flex-1 space-y-2">
+          <Input
+            value={step.title}
+            onChange={(e) => onUpdateStep(step.id, { title: e.target.value })}
+            className="font-semibold"
+          />
+          <Input
+            value={step.subtitle || ''}
+            onChange={(e) => onUpdateStep(step.id, { subtitle: e.target.value })}
+            placeholder="Sous-titre (optionnel)"
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDeleteStep(step.id)}
+        >
+          🗑️
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Champs</Label>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => onFieldDragEnd(step.id, event)}
+        >
+          <SortableContext
+            items={step.fields.map((_, i) => `field-${i}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {step.fields.map((field, fieldIndex) => (
+              <SortableFieldItem
+                key={fieldIndex}
+                id={`field-${fieldIndex}`}
+                field={field}
+                onEdit={() => onEditField({ stepId: step.id, fieldIndex })}
+                onDelete={() => onDeleteField(step.id, fieldIndex)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onAddField(step.id)}
+          className="w-full"
+        >
+          + Ajouter un champ
+        </Button>
+      </div>
+
+      <div className="mt-4">
+        <Label>Étape suivante</Label>
+        <Select
+          value={step.nextStep || 'null'}
+          onValueChange={(value) =>
+            onUpdateStep(step.id, { nextStep: value === 'null' ? null : value })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="null">Fin du formulaire</SelectItem>
+            {variant.steps
+              .filter((s) => s.id !== step.id)
+              .map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.title}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </Card>
+  );
+}
+
+// Composant pour un Field draggable
+function SortableFieldItem({
+  id,
+  field,
+  onEdit,
+  onDelete,
+}: {
+  id: string;
+  field: FieldConfig;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded border p-2 bg-white"
+    >
+      <button
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+        {...attributes}
+        {...listeners}
+      >
+        ⋮⋮
+      </button>
+      <span className="flex-1 text-sm">
+        {field.label} ({field.type})
+        {field.required && <Badge variant="secondary" className="ml-2">Requis</Badge>}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onEdit}
+      >
+        ✏️
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDelete}
+      >
+        🗑️
+      </Button>
+    </div>
   );
 }
 

@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { statusStyles, formatDateTime } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LeadsTable } from '@/components/dashboard/leads-table';
+import { EmptyState, EmptyLeadsIllustration } from '@/components/ui/empty-state';
 import type { Lead } from '@/types';
+import { TrendingUp, TrendingDown, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,7 @@ async function getLeads(): Promise<Lead[]> {
   const { data, error } = await supabase
     .from('leads')
     .select('*, funnels(name, slug)')
-    .order('created_at', { ascending: false })
-    .limit(100);
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching leads:', error);
@@ -28,8 +27,10 @@ export default async function LeadsPage() {
 
   // Calculer les stats
   const totalLeads = leads.length;
-  const sentLeads = leads.filter((l) => l.status === 'sent').length;
+  const sentLeads = leads.filter((l) => l.status === 'sent' || l.status === 'accepted').length;
   const errorLeads = leads.filter((l) => l.status === 'error').length;
+  const successRate = totalLeads > 0 ? Math.round((sentLeads / totalLeads) * 100) : 0;
+  const errorRate = totalLeads > 0 ? Math.round((errorLeads / totalLeads) * 100) : 0;
 
   return (
     <div className="container py-8">
@@ -40,119 +41,62 @@ export default async function LeadsPage() {
         </p>
       </div>
 
+      {/* Stats Cards */}
       <div className="mb-6 grid gap-6 md:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalLeads}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Envoyés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{sentLeads}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalLeads > 0 ? Math.round((sentLeads / totalLeads) * 100) : 0}%
+            <p className="text-xs text-muted-foreground mt-1">
+              Leads collectés au total
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Erreurs</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Taux de réussite</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{errorLeads}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalLeads > 0 ? Math.round((errorLeads / totalLeads) * 100) : 0}%
+            <div className="text-2xl font-bold text-green-600">{successRate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {sentLeads} leads envoyés avec succès
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Taux d&apos;erreur</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{errorRate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {errorLeads} leads en erreur
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      {/* Leads Table */}
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Liste des leads</CardTitle>
-          <CardDescription>
-            Les 100 derniers leads collectés
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {leads.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">
-              Aucun lead pour le moment
-            </p>
+            <EmptyState
+              icon={<EmptyLeadsIllustration />}
+              title="Aucun lead pour le moment"
+              description="Les leads collectés via vos funnels apparaîtront ici"
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Funnel</TableHead>
-                    <TableHead>Variante</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className="text-sm">
-                        {formatDateTime(lead.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{lead.funnels?.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          /{lead.funnels?.slug}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{lead.variant.toUpperCase()}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs">
-                          {lead.data.firstName && (
-                            <div className="font-medium">{lead.data.firstName}</div>
-                          )}
-                          {lead.data.email && (
-                            <div className="text-sm text-muted-foreground">
-                              {lead.data.email}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {lead.sent_to_client ? (
-                          <div className="text-sm">{lead.sent_to_client}</div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusStyles[lead.status]}>
-                          {lead.status === 'pending' && 'En attente'}
-                          {lead.status === 'sent' && 'Envoyé'}
-                          {lead.status === 'accepted' && 'Accepté'}
-                          {lead.status === 'rejected' && 'Rejeté'}
-                          {lead.status === 'error' && 'Erreur'}
-                        </Badge>
-                        {lead.error_message && (
-                          <div className="mt-1 text-xs text-red-600">
-                            {lead.error_message}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <LeadsTable leads={leads} />
           )}
         </CardContent>
       </Card>

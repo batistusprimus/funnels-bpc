@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { TagInput } from '@/components/ui/tag-input';
 import { toast } from 'sonner';
 import { generateSlug } from '@/lib/utils';
 import { getTemplate } from '@/lib/templates';
@@ -26,6 +27,7 @@ export default function NewFunnelPage() {
   const [slug, setSlug] = useState('');
   const [domain, setDomain] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
 
   // Step 2: Template
   const [template, setTemplate] = useState<Template>('simple');
@@ -87,6 +89,7 @@ export default function NewFunnelPage() {
           domain: domain || null,
           description: description || null,
           status: 'draft',
+          tags: tags || [],
           config,
         })
         .select()
@@ -174,6 +177,15 @@ export default function NewFunnelPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (optionnel)</Label>
+              <TagInput
+                value={tags}
+                onChange={setTags}
+                placeholder="Ex: immobilier, lead-magnet..."
               />
             </div>
 

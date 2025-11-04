@@ -9,8 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { RoutingFlow } from '@/components/dashboard/routing-flow';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { Funnel, RoutingRule, ConditionOperator } from '@/types';
+import { ArrowRightLeft } from 'lucide-react';
 
 interface RoutingPageProps {
   params: Promise<{ id: string }>;
@@ -187,7 +191,7 @@ export default function RoutingPage({ params }: RoutingPageProps) {
   }
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="container max-w-6xl py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Configuration du routage</h1>
@@ -213,7 +217,41 @@ export default function RoutingPage({ params }: RoutingPageProps) {
         </CardHeader>
       </Card>
 
-      <div className="space-y-4">
+      <Tabs defaultValue="flow" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="flow">🎨 Vue Flow</TabsTrigger>
+          <TabsTrigger value="list">📋 Vue Liste</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="flow" className="space-y-4">
+          <RoutingFlow 
+            rules={rules} 
+            onRuleClick={(ruleId) => {
+              // Scroll vers la règle en mode liste
+              const index = rules.findIndex(r => r.id === ruleId);
+              if (index !== -1) {
+                toast.info(`Règle ${index + 1}: ${rules[index].client_name}`);
+              }
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="list" className="space-y-4">
+          {rules.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center justify-center">
+                  <ArrowRightLeft className="h-20 w-20 text-muted-foreground/20 mb-6" />
+                  <h3 className="text-lg font-semibold mb-2">Aucune règle de routage</h3>
+                  <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
+                    Créez des règles pour router automatiquement vos leads vers les bons webhooks en fonction de critères
+                  </p>
+                  <Button onClick={addRule}>+ Créer une règle</Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          <div className="space-y-4">
         {rules.map((rule, index) => (
           <Card key={index}>
             <CardContent className="pt-6">
@@ -354,25 +392,28 @@ export default function RoutingPage({ params }: RoutingPageProps) {
           </Card>
         ))}
 
-        <Button onClick={addRule} className="w-full" variant="outline">
-          + Ajouter une règle
-        </Button>
-      </div>
-
-      {availableFields.length === 0 && (
-        <Card className="mt-6">
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              Ajoutez des champs à votre formulaire pour créer des règles de routage.
-            </p>
-            <Button asChild className="mt-4">
-              <a href={`/funnels/${funnel.id}/builder`}>
-                Éditer le formulaire
-              </a>
+            <Button onClick={addRule} className="w-full" variant="outline">
+              + Ajouter une règle
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          )}
+
+          {availableFields.length === 0 && (
+            <Card className="mt-6">
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">
+                  Ajoutez des champs à votre formulaire pour créer des règles de routage.
+                </p>
+                <Button asChild className="mt-4">
+                  <a href={`/funnels/${funnel.id}/builder`}>
+                    Éditer le formulaire
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

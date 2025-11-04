@@ -6,6 +6,8 @@ export type VariantKey = 'a' | 'b' | 'c';
 export type FieldType = 'text' | 'email' | 'tel' | 'number' | 'select' | 'radio' | 'checkbox' | 'textarea';
 export type ConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains' | 'startsWith' | 'endsWith';
 export type AnalyticsEventType = 'page_view' | 'form_start' | 'step_complete' | 'form_submit' | 'lead_sent';
+export type TeamRole = 'owner' | 'editor' | 'viewer';
+export type TeamMemberStatus = 'pending' | 'active' | 'suspended';
 
 // Field Configuration
 export interface FieldConfig {
@@ -88,6 +90,7 @@ export interface Funnel {
   description: string | null;
   status: FunnelStatus;
   config: FunnelConfig;
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -132,6 +135,33 @@ export interface AnalyticsEvent {
   data: Record<string, any>;
   user_agent: string | null;
   ip_address: string | null;
+  created_at: string;
+}
+
+// Team Collaboration Types
+export interface TeamMember {
+  id: string;
+  user_id: string;
+  email: string;
+  role: TeamRole;
+  invited_by: string | null;
+  invited_at: string;
+  joined_at: string | null;
+  status: TeamMemberStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  user_id: string | null;
+  user_email?: string;
+  action: string;
+  entity_type: 'funnel' | 'lead' | 'routing_rule' | 'team_member';
+  entity_id: string | null;
+  metadata: Record<string, any>;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
 }
 
@@ -187,4 +217,3 @@ export interface FunnelAnalytics {
     percentage: number;
   }[];
 }
-

@@ -79,6 +79,7 @@ export const createFunnelSchema = z.object({
   description: z.string().optional(),
   tracking: trackingConfigSchema.optional(),
   template: z.enum(['simple', 'storytelling', 'quiz', 'blank']).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 // Update Funnel Schema
@@ -89,6 +90,7 @@ export const updateFunnelSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['draft', 'active', 'archived']).optional(),
   config: funnelConfigSchema.optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 // Submit Lead Schema
