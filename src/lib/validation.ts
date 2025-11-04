@@ -97,8 +97,8 @@ export const updateFunnelSchema = z.object({
 export const submitLeadSchema = z.object({
   funnelId: z.string().uuid(),
   variant: z.enum(['a', 'b', 'c']),
-  data: z.record(z.any()),
-  utmParams: z.record(z.string()).optional(),
+  data: z.record(z.string(), z.any()),
+  utmParams: z.record(z.string(), z.string()).optional(),
 });
 
 // Routing Rule Schema
