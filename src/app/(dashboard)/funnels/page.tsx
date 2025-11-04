@@ -9,7 +9,9 @@ import type { Funnel } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-async function getFunnelsWithStats() {
+type FunnelWithStats = Funnel & { leadsCount: number };
+
+async function getFunnelsWithStats(): Promise<FunnelWithStats[]> {
   const supabase = await createClient();
   
   // Récupérer les funnels
@@ -23,9 +25,11 @@ async function getFunnelsWithStats() {
     return [];
   }
 
+  const typedFunnels = (funnels ?? []) as unknown as Funnel[];
+
   // Récupérer les stats de leads pour chaque funnel
   const funnelsWithStats = await Promise.all(
-    (funnels || []).map(async (funnel) => {
+    typedFunnels.map(async (funnel): Promise<FunnelWithStats> => {
       const { count } = await supabase
         .from('leads')
         .select('*', { count: 'exact', head: true })
@@ -33,8 +37,8 @@ async function getFunnelsWithStats() {
 
       return {
         ...funnel,
-        leadsCount: count || 0,
-      };
+        leadsCount: count ?? 0,
+      } satisfies FunnelWithStats;
     })
   );
 
