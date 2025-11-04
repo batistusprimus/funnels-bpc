@@ -137,8 +137,19 @@ export default function WebhooksPage() {
       .single();
 
     if (data) {
-      setWebhookConfig(data);
-      setCustomHeaders(data.custom_headers || {});
+      const config: WebhookConfig = {
+        id: data.id,
+        routing_rule_id: data.routing_rule_id,
+        custom_headers: data.custom_headers || {},
+        timeout_ms: data.timeout_ms,
+        retry_enabled: data.retry_enabled,
+        max_retries: data.max_retries,
+        retry_delay_ms: data.retry_delay_ms,
+        retry_backoff_multiplier: data.retry_backoff_multiplier,
+      };
+
+      setWebhookConfig(config);
+      setCustomHeaders(config.custom_headers);
     } else if (error) {
       // Créer une config par défaut
       const { data: newConfig } = await supabase
@@ -156,8 +167,19 @@ export default function WebhooksPage() {
         .single();
       
       if (newConfig) {
-        setWebhookConfig(newConfig);
-        setCustomHeaders({});
+        const config: WebhookConfig = {
+          id: newConfig.id,
+          routing_rule_id: newConfig.routing_rule_id,
+          custom_headers: newConfig.custom_headers || {},
+          timeout_ms: newConfig.timeout_ms,
+          retry_enabled: newConfig.retry_enabled,
+          max_retries: newConfig.max_retries,
+          retry_delay_ms: newConfig.retry_delay_ms,
+          retry_backoff_multiplier: newConfig.retry_backoff_multiplier,
+        };
+
+        setWebhookConfig(config);
+        setCustomHeaders(config.custom_headers);
       }
     }
   }
