@@ -115,8 +115,16 @@ export default function WebhooksPage() {
       toast.error('Erreur lors du chargement des règles de routage');
       console.error(error);
     } else if (data && data.length > 0) {
-      setRoutingRules(data);
-      setSelectedRule(data[0].id);
+      const rules: RoutingRule[] = data.map((rule) => ({
+        id: rule.id,
+        webhook_url: rule.webhook_url,
+        client_name: rule.client_name,
+        priority: rule.priority,
+        is_active: rule.is_active,
+      }));
+
+      setRoutingRules(rules);
+      setSelectedRule(rules[0]?.id ?? null);
     }
     setLoading(false);
   }
